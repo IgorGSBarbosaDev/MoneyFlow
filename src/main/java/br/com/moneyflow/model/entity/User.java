@@ -3,9 +3,7 @@ package br.com.moneyflow.model.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -23,16 +21,13 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     @NotBlank
     @Column(nullable = false, length = 100)
     private String name;
-
     @NotBlank
     @Email
     @Column(nullable = false, length = 120)
     private String email;
-
     @NotBlank
     @Column(nullable = false)
     private String password;
