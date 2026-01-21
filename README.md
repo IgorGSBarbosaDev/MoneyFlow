@@ -60,13 +60,3 @@ src/
 └── test/                        # Testes unitários e integração
 ```
 
-
-## 👨‍💻 Autor
-
-Seu Nome - [seu-email@email.com](mailto:seu-email@email.com)
-
-GitHub: [@seu-usuario](https://github.com/seu-usuario)
-
----
-
-⭐ Se este projeto te ajudou, considere dar uma estrela no repositório!
