@@ -31,3 +31,33 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Environment Variables ###
+.env
+.env.local
+.env.*.local
+
+### Logs ###
+logs/
+*.log
+log/
+
+### OS ###
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+### AI Copilot ###
+.copilot-instructions.md
+
+### Database ###
+*.db
+*.sqlite
+*.h2.db
+
+### Temporary Files ###
+*.tmp
+*.bak
+*.cache
