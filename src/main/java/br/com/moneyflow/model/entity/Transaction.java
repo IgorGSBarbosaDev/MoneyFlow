@@ -1,13 +1,8 @@
 package br.com.moneyflow.model.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Size;
 import lombok.*;
 
-import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -19,9 +14,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @ToString
-public class Transaction implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class Transaction {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,47 +22,37 @@ public class Transaction implements Serializable {
     private Long id;
 
     @Setter
-    @NotBlank
-    @Size(max = 200)
     @Column(nullable = false, length = 200)
     private String description;
 
     @Setter
-    @NotNull
-    @DecimalMin(value = "0.0", inclusive = false)
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
 
     @Setter
-    @NotNull
     @Column(nullable = false)
     private LocalDate date;
 
     @Setter
-    @NotNull
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     private TransactionType type;
 
     @Setter
-    @NotNull
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_method", nullable = false, length = 50)
     private PaymentMethod paymentMethod;
 
     @Setter
-    @Size(max = 500)
     @Column(length = 500)
     private String notes;
 
     @Setter
-    @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "category_id", nullable = false, foreignKey = @ForeignKey(name = "fk_transaction_category"))
     private Category category;
 
     @Setter
-    @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_transaction_user"))
     private User user;
@@ -80,22 +63,19 @@ public class Transaction implements Serializable {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    @Setter
     @Column(nullable = false)
-    private Boolean deleted;
+    private Boolean deleted = Boolean.FALSE;
 
     @PrePersist
-    protected void onCreate() {
+    public void prePersist() {
         LocalDateTime now = LocalDateTime.now();
         this.createdAt = now;
         this.updatedAt = now;
-        if (this.deleted == null) {
-            this.deleted = Boolean.FALSE;
-        }
+        this.deleted = Boolean.FALSE;
     }
 
     @PreUpdate
-    protected void onUpdate() {
+    public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
 
