@@ -38,7 +38,6 @@ public class User {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    @Setter
     @Column(nullable = false)
     private Boolean active;
 
