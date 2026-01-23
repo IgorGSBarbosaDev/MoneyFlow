@@ -7,7 +7,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "budgets")
+@Table(name = "budgets", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_budgets_user_category_month_year",
+                      columnNames = {"user_id", "category_id", "month", "year"})
+})
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
