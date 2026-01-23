@@ -1,6 +1,3 @@
--- Migration: V1__create_users_table.sql
--- Descrição: Criação da tabela de usuários
-
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
