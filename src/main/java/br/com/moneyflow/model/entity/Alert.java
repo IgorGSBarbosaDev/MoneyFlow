@@ -27,6 +27,10 @@ public class Alert {
     @Column(nullable = false, length = 20)
     private AlertLevel level;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "alert_type", length = 30)
+    private AlertType alertType;
+
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal budgetAmount;
 
