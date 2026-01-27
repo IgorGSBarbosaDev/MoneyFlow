@@ -11,7 +11,6 @@ public record ChangePasswordDTO(
     String newPassword,
 
     @NotBlank(message = "Confirmação de senha é obrigatória")
-    String confirmPassword
-) {
-    // Senha não sofre trim para preservar espaços intencionais
+    String confirmPassword) {
+
 }
