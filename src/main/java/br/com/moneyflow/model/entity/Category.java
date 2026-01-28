@@ -40,6 +40,7 @@ public class Category {
     @Column(nullable = false, length = 200)
     private String icon;
 
+    @Setter
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_category_user"))
     private User user;
