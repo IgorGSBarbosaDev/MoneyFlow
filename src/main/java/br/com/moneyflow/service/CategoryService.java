@@ -73,10 +73,7 @@ public class CategoryService {
 
     public CategoryResponseDTO getCategoryById(Long userId, Long categoryId) {
         Category category = findCategoryOrThrow(categoryId);
-
-        if (!category.getUser().getId().equals(userId)) {
-            throw new ValidationException("Unauthorized access: Category does not belong to this user");
-        }
+        validateCategoryOwnership(category, userId);
         return toDTO(category);
     }
 
@@ -84,9 +81,7 @@ public class CategoryService {
     public CategoryResponseDTO updateCategory(Long userId, Long categoryId, CategoryRequestDTO dto) {
         Category category = findCategoryOrThrow(categoryId);
 
-        if (!category.getUser().getId().equals(userId)) {
-            throw new ValidationException("Unauthorized access: Category does not belong to this user");
-        }
+        validateCategoryOwnership(category, userId);
 
         if (!category.getName().equals(dto.name())) {
             if (categoryRepository.existsByUserIdAndName(userId, dto.name())) {
@@ -120,9 +115,7 @@ public class CategoryService {
     public void deleteCategory(Long userId, Long categoryId) {
         Category category = findCategoryOrThrow(categoryId);
 
-        if (!category.getUser().getId().equals(userId)) {
-            throw new ValidationException("Unauthorized access: Category does not belong to this user");
-        }
+        validateCategoryOwnership(category, userId);
 
         boolean hasTransactions = transactionRepository.existsByCategoryId(categoryId);
         if (hasTransactions) {
@@ -137,7 +130,6 @@ public class CategoryService {
                     "Cannot delete category because it has " + budgets.size() + " budget(s) associated. " +
                     "Please delete the budgets first.");
         }
-
         categoryRepository.delete(category);
     }
 
@@ -166,6 +158,12 @@ public class CategoryService {
                     );
                 })
                 .collect(Collectors.toList());
+    }
+
+    private void validateCategoryOwnership(Category category, Long userId){
+        if (!category.getUser().getId().equals(userId)) {
+            throw new ValidationException("Unauthorized access: Category does not belong to this user");
+        }
     }
 
     private Category findCategoryOrThrow(Long categoryId){
