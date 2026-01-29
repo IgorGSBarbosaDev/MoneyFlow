@@ -22,9 +22,9 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     List<Transaction> findByUserIdAndCategoryId(Long userId, Long categoryId);
 
-    Boolean existsByCategoryIdAndDeletedFalse(Long categoryId);
+    Boolean existsByCategoryId(Long categoryId);
 
-    // Queries Customizadas (@Query)
+    Boolean existsByCategoryIdAndDeletedFalse(Long categoryId);
 
     @Query("SELECT t FROM Transaction t " +
             "WHERE t.user.id = :userId " +
@@ -130,7 +130,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             Pageable pageable
     );
 
-    // Interfaces de Projeção
     interface CategoryExpenseProjection {
         Long getCategoryId();
         String getCategoryName();
