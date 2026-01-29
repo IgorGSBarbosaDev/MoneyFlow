@@ -72,8 +72,7 @@ public class CategoryService {
     }
 
     public CategoryResponseDTO getCategoryById(Long userId, Long categoryId) {
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + categoryId));
+        Category category = findCategoryOrThrow(categoryId);
 
         if (!category.getUser().getId().equals(userId)) {
             throw new ValidationException("Unauthorized access: Category does not belong to this user");
@@ -83,8 +82,7 @@ public class CategoryService {
 
     @Transactional
     public CategoryResponseDTO updateCategory(Long userId, Long categoryId, CategoryRequestDTO dto) {
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + categoryId));
+        Category category = findCategoryOrThrow(categoryId);
 
         if (!category.getUser().getId().equals(userId)) {
             throw new ValidationException("Unauthorized access: Category does not belong to this user");
@@ -120,8 +118,7 @@ public class CategoryService {
 
     @Transactional
     public void deleteCategory(Long userId, Long categoryId) {
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + categoryId));
+        Category category = findCategoryOrThrow(categoryId);
 
         if (!category.getUser().getId().equals(userId)) {
             throw new ValidationException("Unauthorized access: Category does not belong to this user");
@@ -171,6 +168,10 @@ public class CategoryService {
                 .collect(Collectors.toList());
     }
 
+    private Category findCategoryOrThrow(Long categoryId){
+        return categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + categoryId));
+    }
 
     private void validateTextFormat(String name, String color) {
         if (name == null || name.isBlank()) {
