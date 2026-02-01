@@ -18,19 +18,46 @@ import java.time.LocalDate;
 @Service
 @RequiredArgsConstructor
 public class TransactionService {
-    private TransactionRepository transactionRepository;
-    private CategoryRepository categoryRepository;
-    private UserRepository userRepository;
-    private BudgetRepository budgetRepository;
-    private AlertService alertService;
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
     private final BudgetRepository budgetRepository;
     private final AlertService alertService;
 
+    @Transactional
+    public TransactionResponseDTO createTransaction(Long userId, TransactionRequestDTO transactionRequestDTO) {
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId));
 
+        var category = categoryRepository.findByUserIdAndCategoryId(userId, transactionRequestDTO.categoryId())
+                .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + transactionRequestDTO.categoryId()));
 
+        if (!transactionRequestDTO.type().equals(category.getType())){
+            throw new CategoryNotFoundException("Category type does not match transaction type");
+        }
+        if (transactionRequestDTO.amount() == null || transactionRequestDTO.amount().compareTo(java.math.BigDecimal.ZERO)<= 0){
+            throw new InvalidAmountException("Amount must be greater than 0");
+        }
+        if (transactionRequestDTO.date().isAfter(LocalDate.now())){
+            throw new InvalidDateException("Transaction date cannot be in the future");
+        }
+        Transaction transaction = new Transaction();
+        transaction.setUser(user);
+        transaction.setDescription(transactionRequestDTO.description());
+        transaction.setAmount(transactionRequestDTO.amount());
+        transaction.setDate(transactionRequestDTO.date());
+        transaction.setType(transactionRequestDTO.type());
+        transaction.setCategory(category);
+        transaction.setPaymentMethod(transactionRequestDTO.paymentMethod());
+        transaction.setNotes(transactionRequestDTO.notes());
+
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        if (savedTransaction.getType() == TransactionType.EXPENSE){
+            recalculateBudgetAndMaybeAlert(savedTransaction);
+        }
+        return toDTO(savedTransaction);
+    }
 
     public TransactionResponseDTO getTransactionById(Long userId, Long transactionId){
         transactionRepository.findById(transactionId)
