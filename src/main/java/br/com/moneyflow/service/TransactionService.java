@@ -1,8 +1,9 @@
 package br.com.moneyflow.service;
 
-import br.com.moneyflow.exception.TransactionNotFoundException;
-import br.com.moneyflow.exception.UnauthorizedAcessException;
+import br.com.moneyflow.exception.*;
+import br.com.moneyflow.model.dto.transaction.TransactionRequestDTO;
 import br.com.moneyflow.model.dto.transaction.TransactionResponseDTO;
+import br.com.moneyflow.model.entity.Budget;
 import br.com.moneyflow.model.entity.Transaction;
 import br.com.moneyflow.model.entity.TransactionType;
 import br.com.moneyflow.repository.BudgetRepository;
@@ -13,7 +14,9 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -32,8 +35,8 @@ public class TransactionService {
         var category = categoryRepository.findByUserIdAndCategoryId(userId, transactionRequestDTO.categoryId())
                 .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + transactionRequestDTO.categoryId()));
 
-        if (!transactionRequestDTO.type().equals(category.getType())){
-            throw new CategoryNotFoundException("Category type does not match transaction type");
+        if (!transactionRequestDTO.type().name().equals(category.getType().name())){
+            throw new InvalidTransactionTypeException("Category type does not match transaction type");
         }
         if (transactionRequestDTO.amount() == null || transactionRequestDTO.amount().compareTo(java.math.BigDecimal.ZERO)<= 0){
             throw new InvalidAmountException("Amount must be greater than 0");
@@ -60,10 +63,9 @@ public class TransactionService {
     }
 
     public TransactionResponseDTO getTransactionById(Long userId, Long transactionId){
-        transactionRepository.findById(transactionId)
+        Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new TransactionNotFoundException("Transaction not found with id: " + transactionId));
 
-        Transaction transaction = transactionRepository.findById(transactionId).get();
         validadeTransactionOwnership(transaction, userId);
 
         return toDTO(transaction);
@@ -87,5 +89,26 @@ public class TransactionService {
                 transaction.getCreatedAt(),
                 transaction.getUpdatedAt());
     }
+    private void recalculateBudgetAndMaybeAlert(Transaction transaction) {
+        List<Budget> budgets = budgetRepository.findByUserIdAndMonthAndYear(
+                transaction.getUser().getId(),
+                transaction.getDate().getMonthValue(),
+                transaction.getDate().getYear()
+        );
+
+        if (budgets != null && !budgets.isEmpty()) {
+            for (Budget budget : budgets) {
+                BigDecimal spent = transactionRepository.sumExpensesByCategoryAndMonth(
+                        budget.getUser().getId(),
+                        budget.getCategory().getId(),
+                        budget.getYear(),
+                        budget.getMonth()
+                );
+
+                alertService.checkAndSendBudgetAlert(budget, spent);
+            }
+        }
+    }
 
 }
+
