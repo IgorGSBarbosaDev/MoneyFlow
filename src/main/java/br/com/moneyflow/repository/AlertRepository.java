@@ -2,6 +2,7 @@ package br.com.moneyflow.repository;
 
 import br.com.moneyflow.model.entity.Alert;
 import br.com.moneyflow.model.entity.AlertLevel;
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -18,6 +19,11 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     List<Alert> findByUserIdAndLevel(Long userId, AlertLevel level);
     Long countByUserIdAndReadFalse(Long userId);
     boolean existsByUserIdAndBudgetIdAndLevel(Long userId, Long budgetId, AlertLevel level);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM Alert a WHERE a.user.id = :userId AND a.budget.id = :budgetId AND a.level = :level")
+    void deleteByUserIdAndBudgetIdAndLevel(@Param("userId") Long userId, @Param("budgetId") Long budgetId, @Param("level") AlertLevel level);
 
     @Query("""
             SELECT a FROM Alert a
