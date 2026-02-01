@@ -22,6 +22,8 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     Long countByUserId(Long userId);
 
+    Optional<Category> findByUserIdAndCategoryId(Long userId, Long categoryId);
+
     // Queries Customizadas
     @Query("SELECT c, COUNT(t.id) as transactionCount " +
             "FROM Category c " +
