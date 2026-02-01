@@ -4,12 +4,16 @@ import br.com.moneyflow.exception.TransactionNotFoundException;
 import br.com.moneyflow.exception.UnauthorizedAcessException;
 import br.com.moneyflow.model.dto.transaction.TransactionResponseDTO;
 import br.com.moneyflow.model.entity.Transaction;
+import br.com.moneyflow.model.entity.TransactionType;
 import br.com.moneyflow.repository.BudgetRepository;
 import br.com.moneyflow.repository.CategoryRepository;
 import br.com.moneyflow.repository.TransactionRepository;
 import br.com.moneyflow.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +23,12 @@ public class TransactionService {
     private UserRepository userRepository;
     private BudgetRepository budgetRepository;
     private AlertService alertService;
+    private final TransactionRepository transactionRepository;
+    private final CategoryRepository categoryRepository;
+    private final UserRepository userRepository;
+    private final BudgetRepository budgetRepository;
+    private final AlertService alertService;
+
 
 
 
