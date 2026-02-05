@@ -1,9 +1,12 @@
 package br.com.moneyflow.service;
 
 import br.com.moneyflow.exception.*;
+import br.com.moneyflow.model.dto.transaction.CategoryExpenseDTO;
+import br.com.moneyflow.model.dto.transaction.TransactionFilterDTO;
 import br.com.moneyflow.model.dto.transaction.TransactionRequestDTO;
 import br.com.moneyflow.model.dto.transaction.TransactionResponseDTO;
 import br.com.moneyflow.model.entity.Budget;
+import br.com.moneyflow.model.entity.Category;
 import br.com.moneyflow.model.entity.Transaction;
 import br.com.moneyflow.model.entity.TransactionType;
 import br.com.moneyflow.repository.BudgetRepository;
@@ -12,11 +15,16 @@ import br.com.moneyflow.repository.TransactionRepository;
 import br.com.moneyflow.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,20 +38,27 @@ public class TransactionService {
     @Transactional
     public TransactionResponseDTO createTransaction(Long userId, TransactionRequestDTO transactionRequestDTO) {
         var user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId));
+                .orElseThrow(() -> new UserNotFoundException("Usuário não encontrado com id: " + userId));
 
         var category = categoryRepository.findByUserIdAndCategoryId(userId, transactionRequestDTO.categoryId())
-                .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + transactionRequestDTO.categoryId()));
+                .orElseThrow(() -> new CategoryNotFoundException("Categoria não encontrada com id: " + transactionRequestDTO.categoryId()));
 
-        if (!transactionRequestDTO.type().name().equals(category.getType().name())){
-            throw new InvalidTransactionTypeException("Category type does not match transaction type");
+        if (!transactionRequestDTO.type().name().equals(category.getType().name())) {
+            throw new InvalidTransactionTypeException("Tipo da transação não corresponde ao tipo da categoria");
         }
-        if (transactionRequestDTO.amount() == null || transactionRequestDTO.amount().compareTo(java.math.BigDecimal.ZERO)<= 0){
-            throw new InvalidAmountException("Amount must be greater than 0");
+
+        if (transactionRequestDTO.amount() == null || transactionRequestDTO.amount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidAmountException("Valor deve ser maior que zero");
         }
-        if (transactionRequestDTO.date().isAfter(LocalDate.now())){
-            throw new InvalidDateException("Transaction date cannot be in the future");
+
+        if (transactionRequestDTO.description() == null || transactionRequestDTO.description().trim().length() < 3) {
+            throw new ValidationException("Descrição deve ter no mínimo 3 caracteres");
         }
+
+        if (transactionRequestDTO.date() != null && transactionRequestDTO.date().isAfter(LocalDate.now())) {
+            throw new InvalidDateException("Data da transação não pode ser no futuro");
+        }
+
         Transaction transaction = new Transaction();
         transaction.setUser(user);
         transaction.setDescription(transactionRequestDTO.description());
@@ -56,8 +71,10 @@ public class TransactionService {
 
         Transaction savedTransaction = transactionRepository.save(transaction);
 
-        if (savedTransaction.getType() == TransactionType.EXPENSE){
-            recalculateBudgetAndMaybeAlert(savedTransaction);
+        if (savedTransaction.getType() == TransactionType.EXPENSE) {
+            checkBudgetAndCreateAlert(userId, category.getId(),
+                    savedTransaction.getDate().getYear(),
+                    savedTransaction.getDate().getMonthValue());
         }
         return toDTO(savedTransaction);
     }
