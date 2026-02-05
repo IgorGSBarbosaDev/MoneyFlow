@@ -104,7 +104,8 @@ public class TransactionService {
     }
 
     private TransactionResponseDTO toDTO(Transaction transaction) {
-        return new TransactionResponseDTO(transaction.getId(),
+        return new TransactionResponseDTO(
+                transaction.getId(),
                 transaction.getDescription(),
                 transaction.getAmount(),
                 transaction.getDate(),
@@ -114,13 +115,7 @@ public class TransactionService {
                 transaction.getPaymentMethod(),
                 transaction.getNotes(),
                 transaction.getCreatedAt(),
-                transaction.getUpdatedAt());
-    }
-    private void recalculateBudgetAndMaybeAlert(Transaction transaction) {
-        List<Budget> budgets = budgetRepository.findByUserIdAndMonthAndYear(
-                transaction.getUser().getId(),
-                transaction.getDate().getMonthValue(),
-                transaction.getDate().getYear()
+                transaction.getUpdatedAt()
         );
 
         if (budgets != null && !budgets.isEmpty()) {
