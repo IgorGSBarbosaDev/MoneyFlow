@@ -88,9 +88,161 @@ public class TransactionService {
         return toDTO(transaction);
     }
 
-    private void validadeTransactionOwnership(Transaction transaction, Long userId ) {
+
+    public Page<TransactionResponseDTO> getTransactions(Long userId, TransactionFilterDTO filters, Pageable pageable) {
+        if (filters != null) {
+            if (filters.startDate() != null && filters.endDate() != null
+                    && filters.startDate().isAfter(filters.endDate())) {
+                throw new InvalidDateRangeException("Data inicial não pode ser maior que data final");
+            }
+
+            if (filters.categoryId() != null) {
+                categoryRepository.findByUserIdAndCategoryId(userId, filters.categoryId())
+                        .orElseThrow(() -> new CategoryNotFoundException("Categoria não encontrada ou não pertence ao usuário"));
+            }
+        }
+
+        LocalDate startDate = filters != null ? filters.startDate() : null;
+        LocalDate endDate = filters != null ? filters.endDate() : null;
+        Long categoryId = filters != null ? filters.categoryId() : null;
+        TransactionType type = filters != null ? filters.type() : null;
+
+        List<Transaction> transactions = transactionRepository.findByFilters(
+                userId, categoryId, type, startDate, endDate, pageable);
+
+        List<TransactionResponseDTO> dtos = transactions.stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+
+        long total = transactionRepository.countByFilters(userId, categoryId, type, startDate, endDate);
+
+        return new PageImpl<>(dtos, pageable, total);
+    }
+
+    @Transactional
+    public TransactionResponseDTO updateTransaction(Long userId, Long transactionId, TransactionRequestDTO dto) {
+        Transaction transaction = transactionRepository.findByIdAndDeletedFalse(transactionId)
+                .orElseThrow(() -> new TransactionNotFoundException("Transação não encontrada com id: " + transactionId));
+
+        validateTransactionOwnership(transaction, userId);
+
+        Long oldCategoryId = transaction.getCategory().getId();
+        LocalDate oldDate = transaction.getDate();
+        TransactionType oldType = transaction.getType();
+
+        Category newCategory = categoryRepository.findByUserIdAndCategoryId(userId, dto.categoryId())
+                .orElseThrow(() -> new CategoryNotFoundException("Categoria não encontrada ou não pertence ao usuário"));
+
+        if (!dto.type().name().equals(newCategory.getType().name())) {
+            throw new InvalidTransactionTypeException("Tipo da transação não corresponde ao tipo da categoria");
+        }
+
+        if (dto.amount() == null || dto.amount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidAmountException("Valor deve ser maior que zero");
+        }
+
+        if (dto.description() == null || dto.description().trim().length() < 3) {
+            throw new ValidationException("Descrição deve ter no mínimo 3 caracteres");
+        }
+
+        if (dto.date() != null && dto.date().isAfter(LocalDate.now())) {
+            throw new InvalidDateException("Data da transação não pode ser no futuro");
+        }
+
+        transaction.setDescription(dto.description().trim());
+        transaction.setAmount(dto.amount());
+        transaction.setDate(dto.date());
+        transaction.setType(dto.type());
+        transaction.setCategory(newCategory);
+        transaction.setPaymentMethod(dto.paymentMethod());
+        transaction.setNotes(dto.notes());
+
+        Transaction updatedTransaction = transactionRepository.save(transaction);
+
+        if (dto.type() == TransactionType.EXPENSE || oldType == TransactionType.EXPENSE) {
+            if (!oldCategoryId.equals(dto.categoryId())) {
+                recalculateBudgetAlerts(userId, oldCategoryId, oldDate.getYear(), oldDate.getMonthValue());
+            }
+
+            LocalDate newDate = dto.date();
+            if (newDate != null && (oldDate.getMonthValue() != newDate.getMonthValue()
+                    || oldDate.getYear() != newDate.getYear())) {
+                recalculateBudgetAlerts(userId, oldCategoryId, oldDate.getYear(), oldDate.getMonthValue());
+            }
+
+            if (dto.type() == TransactionType.EXPENSE && newDate != null) {
+                recalculateBudgetAlerts(userId, dto.categoryId(), newDate.getYear(), newDate.getMonthValue());
+            }
+        }
+
+        return toDTO(updatedTransaction);
+    }
+
+    @Transactional
+    public void deleteTransaction(Long userId, Long transactionId) {
+        Transaction transaction = transactionRepository.findByIdAndDeletedFalse(transactionId)
+                .orElseThrow(() -> new TransactionNotFoundException("Transação não encontrada com id: " + transactionId));
+
+        validateTransactionOwnership(transaction, userId);
+
+        Long categoryId = transaction.getCategory().getId();
+        LocalDate date = transaction.getDate();
+        TransactionType type = transaction.getType();
+
+        transaction.softDelete();
+        transactionRepository.save(transaction);
+
+        if (type == TransactionType.EXPENSE) {
+            recalculateBudgetAlerts(userId, categoryId, date.getYear(), date.getMonthValue());
+        }
+    }
+
+    public BigDecimal getTotalIncomeByPeriod(Long userId, LocalDate startDate, LocalDate endDate) {
+
+        validateDateRange(startDate, endDate);
+
+        BigDecimal total = transactionRepository.sumIncomeByPeriod(userId, startDate, endDate);
+        return total != null ? total : BigDecimal.ZERO;
+    }
+
+    public BigDecimal getTotalExpenseByPeriod(Long userId, LocalDate startDate, LocalDate endDate) {
+        validateDateRange(startDate, endDate);
+
+        BigDecimal total = transactionRepository.sumExpensesByPeriod(userId, startDate, endDate);
+        return total != null ? total : BigDecimal.ZERO;
+    }
+
+    public List<CategoryExpenseDTO> getExpensesByCategory(Long userId, LocalDate startDate, LocalDate endDate) {
+        validateDateRange(startDate, endDate);
+
+        var projections = transactionRepository.findExpensesByCategory(userId, startDate, endDate);
+
+        BigDecimal total = projections.stream()
+                .map(TransactionRepository.CategoryExpenseProjection::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return projections.stream()
+                .map(p -> {
+                    BigDecimal percentage = BigDecimal.ZERO;
+                    if (total.compareTo(BigDecimal.ZERO) > 0) {
+                        percentage = p.getTotalAmount()
+                                .multiply(BigDecimal.valueOf(100))
+                                .divide(total, 2, RoundingMode.HALF_UP);
+                    }
+                    return new CategoryExpenseDTO(
+                            p.getCategoryId(),
+                            p.getCategoryName(),
+                            p.getTotalAmount(),
+                            percentage,
+                            p.getTransactionCount().longValue()
+                    );
+                })
+                .collect(Collectors.toList());
+    }
+
+    private void validateTransactionOwnership(Transaction transaction, Long userId) {
         if (!transaction.getUser().getId().equals(userId)) {
-            throw new UnauthorizedAcessException("Unauthorized access: Transaction does not belong to this user");
+            throw new UnauthorizedAcessException("Acesso não autorizado: Transação não pertence a este usuário");
         }
     }
 
