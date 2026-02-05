@@ -93,6 +93,16 @@ public class TransactionService {
             throw new UnauthorizedAcessException("Unauthorized access: Transaction does not belong to this user");
         }
     }
+
+    private void validateDateRange(LocalDate startDate, LocalDate endDate) {
+        if (startDate == null || endDate == null) {
+            throw new InvalidDateException("Data inicial e final são obrigatórias");
+        }
+        if (startDate.isAfter(endDate)) {
+            throw new InvalidDateRangeException("Data inicial não pode ser maior que data final");
+        }
+    }
+
     private TransactionResponseDTO toDTO(Transaction transaction) {
         return new TransactionResponseDTO(transaction.getId(),
                 transaction.getDescription(),
