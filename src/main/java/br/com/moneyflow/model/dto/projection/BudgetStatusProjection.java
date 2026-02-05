@@ -10,17 +10,18 @@ public interface BudgetStatusProjection {
     BigDecimal getBudgetAmount();
     BigDecimal getSpentAmount();
 
-    default BigDecimal getRemainingAmount(){
-        return getBudgetAmount().subtract(getSpentAmount());
+    default BigDecimal getRemainingAmount() {
+        BigDecimal spent = getSpentAmount() != null ? getSpentAmount() : BigDecimal.ZERO;
+        return getBudgetAmount().subtract(spent);
     }
 
-     default BigDecimal getPercentageUsed(){
-        if (getBudgetAmount().compareTo(BigDecimal.ZERO) == 0){
+    default BigDecimal getPercentageUsed() {
+        if (getBudgetAmount() == null || getBudgetAmount().compareTo(BigDecimal.ZERO) == 0) {
             return BigDecimal.ZERO;
         }
-        return getSpentAmount()
-                .divide(getBudgetAmount(), 2, RoundingMode.HALF_UP)
-                .multiply(new BigDecimal(100));
-
-     }
+        BigDecimal spent = getSpentAmount() != null ? getSpentAmount() : BigDecimal.ZERO;
+        return spent
+                .multiply(BigDecimal.valueOf(100))
+                .divide(getBudgetAmount(), 2, RoundingMode.HALF_UP);
+    }
 }
