@@ -84,6 +84,31 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(BudgetNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleBudgetNotFoundException(BudgetNotFoundException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(BudgetAlreadyExistsException.class)
+    public ResponseEntity<Map<String, Object>> handleBudgetAlreadyExistsException(BudgetAlreadyExistsException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(InvalidCategoryTypeException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidCategoryTypeException(InvalidCategoryTypeException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(InvalidMonthException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidMonthException(InvalidMonthException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(InvalidYearException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidYearException(InvalidYearException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
         String errors = ex.getBindingResult()
