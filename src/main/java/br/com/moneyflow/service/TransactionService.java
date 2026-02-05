@@ -117,20 +117,39 @@ public class TransactionService {
                 transaction.getCreatedAt(),
                 transaction.getUpdatedAt()
         );
+    }
+
+    /**
+     * Verifica orçamento e cria alerta se necessário
+     * Regra de Negócio:
+     * 1. Buscar budget da categoria no mês/ano
+     * 2. Se existe budget:
+     *    a. Calcular total gasto no mês
+     *    b. Calcular percentual: (gasto / orçamento) * 100
+     *    c. Se percentual >= 80% E < 100%: AlertService.createWarningAlert()
+     *    d. Se percentual >= 100%: AlertService.createCriticalAlert()
+     */
+    private void checkBudgetAndCreateAlert(Long userId, Long categoryId, int year, int month) {
+        List<Budget> budgets = budgetRepository.findByUserIdAndMonthAndYear(userId, month, year);
 
         if (budgets != null && !budgets.isEmpty()) {
             for (Budget budget : budgets) {
-                BigDecimal spent = transactionRepository.sumExpensesByCategoryAndMonth(
-                        budget.getUser().getId(),
-                        budget.getCategory().getId(),
-                        budget.getYear(),
-                        budget.getMonth()
-                );
+                if (budget.getCategory().getId().equals(categoryId)) {
+                    BigDecimal spent = transactionRepository.sumExpensesByCategoryAndMonth(
+                            userId, categoryId, year, month);
 
-                alertService.checkAndSendBudgetAlert(budget, spent);
+                    if (spent == null) {
+                        spent = BigDecimal.ZERO;
+                    }
+
+                    alertService.checkAndSendBudgetAlert(budget, spent);
+                }
             }
         }
     }
 
+    private void recalculateBudgetAlerts(Long userId, Long categoryId, int year, int month) {
+        checkBudgetAndCreateAlert(userId, categoryId, year, month);
+    }
 }
 
