@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 
@@ -17,6 +18,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     List<Transaction> findByUserId(Long userId);
 
     List<Transaction> findByUserIdAndDeletedFalse(Long userId, Pageable pageable);
+
+    Optional<Transaction> findByIdAndDeletedFalse(Long id);
 
     List<Transaction> findByUserIdAndType(Long userId, TransactionType type);
 
@@ -53,6 +56,21 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
             Pageable pageable
+    );
+
+    @Query("SELECT COUNT(t) FROM Transaction t " +
+            "WHERE t.user.id = :userId " +
+            "AND t.deleted = false " +
+            "AND (:categoryId IS NULL OR t.category.id = :categoryId) " +
+            "AND (:type IS NULL OR t.type = :type) " +
+            "AND (:startDate IS NULL OR t.date >= :startDate) " +
+            "AND (:endDate IS NULL OR t.date <= :endDate)")
+    long countByFilters(
+            @Param("userId") Long userId,
+            @Param("categoryId") Long categoryId,
+            @Param("type") TransactionType type,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
     );
 
     @Query("SELECT COALESCE(SUM(t.amount), 0) " +
@@ -98,6 +116,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             "FROM Transaction t " +
             "JOIN t.category c " +
             "WHERE t.user.id = :userId " +
+            "AND t.type = 'EXPENSE' " +
             "AND t.deleted = false " +
             "AND t.date BETWEEN :startDate AND :endDate " +
             "GROUP BY c.id, c.name " +
