@@ -79,11 +79,11 @@ public class TransactionService {
         return toDTO(savedTransaction);
     }
 
-    public TransactionResponseDTO getTransactionById(Long userId, Long transactionId){
-        Transaction transaction = transactionRepository.findById(transactionId)
-                .orElseThrow(() -> new TransactionNotFoundException("Transaction not found with id: " + transactionId));
+    public TransactionResponseDTO getTransactionById(Long userId, Long transactionId) {
+        Transaction transaction = transactionRepository.findByIdAndDeletedFalse(transactionId)
+                .orElseThrow(() -> new TransactionNotFoundException("Transação não encontrada com id: " + transactionId));
 
-        validadeTransactionOwnership(transaction, userId);
+        validateTransactionOwnership(transaction, userId);
 
         return toDTO(transaction);
     }
