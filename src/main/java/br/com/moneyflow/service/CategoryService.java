@@ -124,7 +124,7 @@ public class CategoryService {
                     "Please reassign or delete the transactions first.");
         }
 
-        List<?> budgets = budgetRepository.findByuserAndCategoryId(userId, categoryId);
+        List<?> budgets = budgetRepository.findByUserIdAndCategoryId(userId, categoryId);
         if (!budgets.isEmpty()) {
             throw new ValidationException(
                     "Cannot delete category because it has " + budgets.size() + " budget(s) associated. " +
