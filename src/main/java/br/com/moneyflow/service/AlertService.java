@@ -1,20 +1,30 @@
 package br.com.moneyflow.service;
 
-import br.com.moneyflow.model.entity.Alert;
-import br.com.moneyflow.model.entity.AlertLevel;
-import br.com.moneyflow.model.entity.Budget;
+import br.com.moneyflow.exception.resource.AlertNotFoundException;
+import br.com.moneyflow.exception.authorization.UnauthorizedAcessException;
+import br.com.moneyflow.exception.business.ValidationException;
+import br.com.moneyflow.model.dto.alert.AlertResponseDTO;
+import br.com.moneyflow.model.entity.*;
 import br.com.moneyflow.repository.AlertRepository;
+import br.com.moneyflow.repository.BudgetRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class AlertService {
-    private final AlertRepository alertRepository;
 
+    private final AlertRepository alertRepository;
+    private final BudgetRepository budgetRepository;
+
+    @Transactional
     public void checkAndSendBudgetAlert(Budget budget, BigDecimal currentSpent) {
         if (budget == null || currentSpent == null) {
             return;
@@ -25,58 +35,154 @@ public class AlertService {
             return;
         }
 
-        BigDecimal percentage = currentSpent
-                .divide(budgetAmount, 4, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(100));
+        BigDecimal percentage = calculatePercentage(currentSpent, budgetAmount);
 
         if (percentage.compareTo(BigDecimal.valueOf(100)) >= 0) {
-            createOrUpdateAlert(budget, AlertLevel.CRITICAL, currentSpent, percentage);
+            createBudgetCriticalAlert(budget.getUser().getId(), budget.getId(), percentage);
         } else if (percentage.compareTo(BigDecimal.valueOf(80)) >= 0) {
-            createOrUpdateAlert(budget, AlertLevel.WARNING, currentSpent, percentage);
+            createBudgetWarningAlert(budget.getUser().getId(), budget.getId(), percentage);
         } else {
-            verifyToRemoveExistingAlerts(budget);
+            removeExistingBudgetAlerts(budget);
         }
     }
 
-    private void createOrUpdateAlert(Budget budget, AlertLevel level, BigDecimal currentSpent, BigDecimal percentage) {
-        boolean exists = alertRepository.existsByUserIdAndBudgetIdAndLevel(
-                budget.getUser().getId(),
-                budget.getId(),
-                level);
-
-        if (exists) {
-            return;
+    @Transactional
+    public AlertResponseDTO createBudgetWarningAlert(Long userId, Long budgetId, BigDecimal percentage) {
+        if (alertRepository.existsByUserIdAndBudgetIdAndLevel(userId, budgetId, AlertLevel.WARNING)) {
+            return null;
         }
 
-        verifyToRemoveExistingAlerts(budget);
+        Budget budget = budgetRepository.findByIdAndUserId(budgetId, userId)
+                .orElseThrow(() -> new ValidationException("Orçamento não encontrado"));
+
+        removeExistingBudgetAlerts(budget);
 
         String message = String.format(
-                "Budget %s: %.2f%% used (%s of %s) for category %s",
-                level.name(),
+                "Você gastou %.2f%% do orçamento de %s este mês",
                 percentage,
-                currentSpent,
-                budget.getAmount(),
                 budget.getCategory().getName());
 
-        Alert alert = new Alert(
-                null,                        // id
-                message,                        // message
-                level,                          // level
-                null,                           // alertType
-                budget.getAmount(),             // budgetAmount
-                currentSpent,                   // currentAmount
-                budget.getMonth(),              // month
-                budget.getYear(),               // year
-                budget.getCategory(),           // category
-                budget,                         // budget
-                budget.getUser(),               // user
-                false,                          // read
-                null);                          // createdAt (será preenchido por @PrePersist)
+        Alert alert = Alert.builder()
+                .message(message)
+                .level(AlertLevel.WARNING)
+                .alertType(AlertType.BUDGET_WARNING)
+                .budgetAmount(budget.getAmount())
+                .currentAmount(calculateCurrentAmount(budget.getAmount(), percentage))
+                .month(budget.getMonth())
+                .year(budget.getYear())
+                .category(budget.getCategory())
+                .budget(budget)
+                .user(budget.getUser())
+                .read(false)
+                .build();
 
-        alertRepository.save(alert);
+        Alert savedAlert = alertRepository.save(alert);
+        return toAlertResponseDTO(savedAlert);
     }
 
-    private void verifyToRemoveExistingAlerts(Budget budget) {
+    @Transactional
+    public AlertResponseDTO createBudgetCriticalAlert(Long userId, Long budgetId, BigDecimal percentage) {
+        if (alertRepository.existsByUserIdAndBudgetIdAndLevel(userId, budgetId, AlertLevel.CRITICAL)) {
+            return null;
+        }
+
+        Budget budget = budgetRepository.findByIdAndUserId(budgetId, userId)
+                .orElseThrow(() -> new ValidationException("Orçamento não encontrado"));
+
+        removeExistingBudgetAlerts(budget);
+
+        BigDecimal exceededBy = percentage.subtract(BigDecimal.valueOf(100));
+        String message = String.format(
+                "ATENÇÃO! Orçamento de %s excedido em %.2f%%",
+                budget.getCategory().getName(),
+                exceededBy.compareTo(BigDecimal.ZERO) > 0 ? exceededBy : BigDecimal.ZERO);
+
+        Alert alert = Alert.builder()
+                .message(message)
+                .level(AlertLevel.CRITICAL)
+                .alertType(AlertType.BUDGET_EXCEEDED)
+                .budgetAmount(budget.getAmount())
+                .currentAmount(calculateCurrentAmount(budget.getAmount(), percentage))
+                .month(budget.getMonth())
+                .year(budget.getYear())
+                .category(budget.getCategory())
+                .budget(budget)
+                .user(budget.getUser())
+                .read(false)
+                .build();
+
+        Alert savedAlert = alertRepository.save(alert);
+        return toAlertResponseDTO(savedAlert);
+    }
+
+    public List<AlertResponseDTO> getAlertsByUser(Long userId, Boolean isRead) {
+        List<Alert> alerts = alertRepository.findByUserIdOrderedByPriorityAndDate(userId, isRead);
+
+        return alerts.stream()
+                .map(this::toAlertResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    public AlertResponseDTO getAlertById(Long userId, Long alertId) {
+        Alert alert = alertRepository.findByIdAndUserId(alertId, userId)
+                .orElseThrow(() -> new AlertNotFoundException("Alerta não encontrado com id: " + alertId));
+
+        return toAlertResponseDTO(alert);
+    }
+
+    public Long getUnreadAlertCount(Long userId) {
+        return alertRepository.countByUserIdAndReadFalse(userId);
+    }
+
+    @Transactional
+    public AlertResponseDTO markAlertAsRead(Long userId, Long alertId) {
+        Alert alert = alertRepository.findByIdAndUserId(alertId, userId)
+                .orElseThrow(() -> new AlertNotFoundException("Alerta não encontrado com id: " + alertId));
+
+        if (Boolean.TRUE.equals(alert.getRead())) {
+            return toAlertResponseDTO(alert);
+        }
+
+        alert.markAsRead();
+        Alert updatedAlert = alertRepository.save(alert);
+
+        return toAlertResponseDTO(updatedAlert);
+    }
+
+    @Transactional
+    public int markMultipleAlertsAsRead(Long userId, List<Long> alertIds) {
+        if (alertIds == null || alertIds.isEmpty()) {
+            return 0;
+        }
+
+        long count = alertRepository.countByUserIdAndIdIn(userId, alertIds);
+        if (count != alertIds.size()) {
+            throw new UnauthorizedAcessException(
+                    "Um ou mais alertas não pertencem ao usuário ou não existem");
+        }
+
+        return alertRepository.markAlertsAsRead(userId, alertIds, LocalDateTime.now());
+    }
+
+    @Transactional
+    public void deleteAlert(Long userId, Long alertId) {
+        Alert alert = alertRepository.findByIdAndUserId(alertId, userId)
+                .orElseThrow(() -> new AlertNotFoundException("Alerta não encontrado com id: " + alertId));
+
+        alertRepository.delete(alert);
+    }
+
+    @Transactional
+    public int cleanOldReadAlerts(Long userId, Integer daysOld) {
+        if (daysOld == null || daysOld < 1) {
+            daysOld = 30; // Default: 30 dias
+        }
+
+        LocalDateTime cutoffDate = LocalDateTime.now().minusDays(daysOld);
+        return alertRepository.deleteOldReadAlerts(userId, cutoffDate);
+    }
+
+    private void removeExistingBudgetAlerts(Budget budget) {
         alertRepository.deleteByUserIdAndBudgetIdAndLevel(
                 budget.getUser().getId(),
                 budget.getId(),
@@ -87,4 +193,47 @@ public class AlertService {
                 budget.getId(),
                 AlertLevel.CRITICAL);
     }
+
+    private BigDecimal calculatePercentage(BigDecimal currentSpent, BigDecimal budgetAmount) {
+        if (budgetAmount.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO;
+        }
+        return currentSpent
+                .multiply(BigDecimal.valueOf(100))
+                .divide(budgetAmount, 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculateCurrentAmount(BigDecimal budgetAmount, BigDecimal percentage) {
+        return budgetAmount
+                .multiply(percentage)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+    }
+
+    private AlertResponseDTO toAlertResponseDTO(Alert alert) {
+        BigDecimal percentageUsed = BigDecimal.ZERO;
+        if (alert.getBudgetAmount() != null &&
+            alert.getBudgetAmount().compareTo(BigDecimal.ZERO) > 0 &&
+            alert.getCurrentAmount() != null) {
+            percentageUsed = calculatePercentage(alert.getCurrentAmount(), alert.getBudgetAmount());
+        }
+
+        return new AlertResponseDTO(
+                alert.getId(),
+                alert.getMessage(),
+                alert.getLevel(),
+                alert.getAlertType(),
+                alert.getCategory() != null ? alert.getCategory().getId() : null,
+                alert.getCategory() != null ? alert.getCategory().getName() : null,
+                alert.getBudget() != null ? alert.getBudget().getId() : null,
+                alert.getBudgetAmount(),
+                alert.getCurrentAmount(),
+                percentageUsed,
+                alert.getMonth(),
+                alert.getYear(),
+                alert.getRead(),
+                alert.getReadAt(),
+                alert.getCreatedAt()
+        );
+    }
 }
+
