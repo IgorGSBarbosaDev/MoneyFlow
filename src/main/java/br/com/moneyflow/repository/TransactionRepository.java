@@ -149,6 +149,22 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             Pageable pageable
     );
 
+    @Query("SELECT c.id as categoryId, c.name as categoryName, COALESCE(SUM(t.amount), 0) as totalAmount, COUNT(t.id) as transactionCount " +
+            "FROM Transaction t " +
+            "JOIN t.category c " +
+            "WHERE t.user.id = :userId " +
+            "AND t.type = 'EXPENSE' " +
+            "AND t.deleted = false " +
+            "AND YEAR(t.date) = :year " +
+            "AND MONTH(t.date) = :month " +
+            "GROUP BY c.id, c.name " +
+            "ORDER BY totalAmount DESC")
+    List<CategoryExpenseProjection> findExpensesByCategoryAndMonth(
+            @Param("userId") Long userId,
+            @Param("year") Integer year,
+            @Param("month") Integer month
+    );
+
     interface CategoryExpenseProjection {
         Long getCategoryId();
         String getCategoryName();
