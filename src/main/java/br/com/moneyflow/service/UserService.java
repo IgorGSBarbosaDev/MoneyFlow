@@ -1,8 +1,8 @@
 package br.com.moneyflow.service;
 
-import br.com.moneyflow.exception.EmailAlreadyExistsException;
-import br.com.moneyflow.exception.InvalidPasswordException;
-import br.com.moneyflow.exception.UserNotFoundException;
+import br.com.moneyflow.exception.business.EmailAlreadyExistsException;
+import br.com.moneyflow.exception.business.InvalidPasswordException;
+import br.com.moneyflow.exception.resource.UserNotFoundException;
 import br.com.moneyflow.model.dto.user.ChangePasswordDTO;
 import br.com.moneyflow.model.dto.user.UserRegistrationDTO;
 import br.com.moneyflow.model.dto.user.UserResponseDTO;
