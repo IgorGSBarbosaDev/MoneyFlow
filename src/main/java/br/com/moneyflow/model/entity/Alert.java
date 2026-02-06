@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @ToString
 public class Alert {
@@ -20,13 +21,16 @@ public class Alert {
     @EqualsAndHashCode.Include
     private Long id;
 
+    @Setter
     @Column(nullable = false, length = 200)
     private String message;
 
+    @Setter
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private AlertLevel level;
 
+    @Setter
     @Enumerated(EnumType.STRING)
     @Column(name = "alert_type", length = 30)
     private AlertType alertType;
@@ -55,8 +59,13 @@ public class Alert {
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_alert_user"))
     private User user;
 
+    @Setter
     @Column(nullable = false)
     private Boolean read;
+
+    @Setter
+    @Column
+    private LocalDateTime readAt;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -74,5 +83,6 @@ public class Alert {
 
     public void markAsRead() {
         this.read = Boolean.TRUE;
+        this.readAt = LocalDateTime.now();
     }
 }
