@@ -1,6 +1,7 @@
 package br.com.moneyflow.service;
 
-import br.com.moneyflow.exception.*;
+import br.com.moneyflow.exception.business.*;
+import br.com.moneyflow.exception.resource.*;
 import br.com.moneyflow.model.dto.category.CategoryRequestDTO;
 import br.com.moneyflow.model.dto.category.CategoryResponseDTO;
 import br.com.moneyflow.model.dto.category.CategoryWithCountDTO;
@@ -196,3 +197,4 @@ public class CategoryService {
         );
     }
 }
+

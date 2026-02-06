@@ -1,6 +1,7 @@
 package br.com.moneyflow.service;
 
-import br.com.moneyflow.exception.*;
+import br.com.moneyflow.exception.business.*;
+import br.com.moneyflow.exception.resource.*;
 import br.com.moneyflow.model.dto.budget.BudgetRequestDTO;
 import br.com.moneyflow.model.dto.budget.BudgetResponseDTO;
 import br.com.moneyflow.model.dto.budget.BudgetStatusDTO;
@@ -294,3 +295,4 @@ public class BudgetService {
         );
     }
 }
+
