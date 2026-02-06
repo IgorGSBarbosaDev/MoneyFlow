@@ -10,20 +10,29 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface AlertRepository extends JpaRepository<Alert, Long> {
 
-
     List<Alert> findByUserId(Long userId);
+
     List<Alert> findByUserIdAndReadFalse(Long userId);
+
     List<Alert> findByUserIdAndLevel(Long userId, AlertLevel level);
+
     Long countByUserIdAndReadFalse(Long userId);
+
     boolean existsByUserIdAndBudgetIdAndLevel(Long userId, Long budgetId, AlertLevel level);
+
+    Optional<Alert> findByIdAndUserId(Long alertId, Long userId);
 
     @Modifying
     @Transactional
     @Query("DELETE FROM Alert a WHERE a.user.id = :userId AND a.budget.id = :budgetId AND a.level = :level")
-    void deleteByUserIdAndBudgetIdAndLevel(@Param("userId") Long userId, @Param("budgetId") Long budgetId, @Param("level") AlertLevel level);
+    void deleteByUserIdAndBudgetIdAndLevel(
+            @Param("userId") Long userId,
+            @Param("budgetId") Long budgetId,
+            @Param("level") AlertLevel level);
 
     @Query("""
             SELECT a FROM Alert a
@@ -55,6 +64,7 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     );
 
     @Modifying
+    @Transactional
     @Query("""
             DELETE FROM Alert a
             WHERE a.user.id = :userId
@@ -67,14 +77,19 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     );
 
     @Modifying
+    @Transactional
     @Query("""
             UPDATE Alert a
-            SET a.read = true
+            SET a.read = true, a.readAt = :readAt
             WHERE a.user.id = :userId
             AND a.id IN :alertIds
             """)
     int markAlertsAsRead(
             @Param("userId") Long userId,
-            @Param("alertIds") List<Long> alertIds
+            @Param("alertIds") List<Long> alertIds,
+            @Param("readAt") LocalDateTime readAt
     );
+
+    @Query("SELECT COUNT(a) FROM Alert a WHERE a.user.id = :userId AND a.id IN :alertIds")
+    long countByUserIdAndIdIn(@Param("userId") Long userId, @Param("alertIds") List<Long> alertIds);
 }
