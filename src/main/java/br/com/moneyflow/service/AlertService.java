@@ -4,6 +4,7 @@ import br.com.moneyflow.exception.resource.AlertNotFoundException;
 import br.com.moneyflow.exception.authorization.UnauthorizedAcessException;
 import br.com.moneyflow.exception.business.ValidationException;
 import br.com.moneyflow.model.dto.alert.AlertResponseDTO;
+import br.com.moneyflow.model.dto.category.CategorySimpleDTO;
 import br.com.moneyflow.model.entity.*;
 import br.com.moneyflow.repository.AlertRepository;
 import br.com.moneyflow.repository.BudgetRepository;
@@ -165,6 +166,24 @@ public class AlertService {
     }
 
     @Transactional
+    public Integer markAllAlertsAsRead(Long userId) {
+        List<Alert> unreadAlerts = alertRepository.findByUserIdAndReadFalse(userId);
+
+        if (unreadAlerts.isEmpty()) {
+            return 0;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        unreadAlerts.forEach(alert -> {
+            alert.setRead(true);
+            alert.setReadAt(now);
+        });
+
+        alertRepository.saveAll(unreadAlerts);
+        return unreadAlerts.size();
+    }
+
+    @Transactional
     public void deleteAlert(Long userId, Long alertId) {
         Alert alert = alertRepository.findByIdAndUserId(alertId, userId)
                 .orElseThrow(() -> new AlertNotFoundException("Alerta não encontrado com id: " + alertId));
@@ -217,23 +236,40 @@ public class AlertService {
             percentageUsed = calculatePercentage(alert.getCurrentAmount(), alert.getBudgetAmount());
         }
 
+        // Gerar título baseado no nível e tipo
+        String title = generateAlertTitle(alert.getLevel(), alert.getAlertType());
+
+        // Criar CategorySimpleDTO se houver categoria
+        CategorySimpleDTO categoryDTO = null;
+        if (alert.getCategory() != null) {
+            categoryDTO = new CategorySimpleDTO(
+                    alert.getCategory().getId(),
+                    alert.getCategory().getName(),
+                    alert.getCategory().getType()
+            );
+        }
+
         return new AlertResponseDTO(
                 alert.getId(),
+                title,
                 alert.getMessage(),
                 alert.getLevel(),
                 alert.getAlertType(),
-                alert.getCategory() != null ? alert.getCategory().getId() : null,
-                alert.getCategory() != null ? alert.getCategory().getName() : null,
-                alert.getBudget() != null ? alert.getBudget().getId() : null,
-                alert.getBudgetAmount(),
-                alert.getCurrentAmount(),
-                percentageUsed,
-                alert.getMonth(),
-                alert.getYear(),
                 alert.getRead(),
-                alert.getReadAt(),
-                alert.getCreatedAt()
+                percentageUsed,
+                categoryDTO,
+                alert.getCreatedAt(),
+                alert.getReadAt()
         );
+    }
+
+    private String generateAlertTitle(AlertLevel level, AlertType type) {
+        if (level == AlertLevel.WARNING && type == AlertType.BUDGET_WARNING) {
+            return "Orçamento Próximo do Limite";
+        } else if (level == AlertLevel.CRITICAL && type == AlertType.BUDGET_EXCEEDED) {
+            return "Orçamento Excedido";
+        }
+        return "Alerta de Orçamento";
     }
 }
 
