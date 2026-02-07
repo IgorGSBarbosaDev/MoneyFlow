@@ -6,6 +6,7 @@ import br.com.moneyflow.model.dto.budget.BudgetRequestDTO;
 import br.com.moneyflow.model.dto.budget.BudgetResponseDTO;
 import br.com.moneyflow.model.dto.budget.BudgetStatusDTO;
 import br.com.moneyflow.model.dto.budget.BudgetUpdateDTO;
+import br.com.moneyflow.model.dto.category.CategorySimpleDTO;
 import br.com.moneyflow.model.dto.projection.BudgetStatusProjection;
 import br.com.moneyflow.model.entity.Budget;
 import br.com.moneyflow.model.entity.Category;
@@ -88,8 +89,15 @@ public class BudgetService {
         return toBudgetResponseDTO(savedBudget);
     }
 
+    public BudgetResponseDTO getBudgetById(Long userId, Long budgetId) {
+        Budget budget = budgetRepository.findByIdAndUserId(budgetId, userId)
+                .orElseThrow(() -> new BudgetNotFoundException(
+                        "Orçamento não encontrado com id: " + budgetId));
 
-    public BudgetStatusDTO getBudgetById(Long userId, Long budgetId) {
+        return toBudgetResponseDTO(budget);
+    }
+
+    public BudgetStatusDTO getBudgetWithStatus(Long userId, Long budgetId) {
         Budget budget = budgetRepository.findByIdAndUserId(budgetId, userId)
                 .orElseThrow(() -> new BudgetNotFoundException(
                         "Orçamento não encontrado com id: " + budgetId));
@@ -190,6 +198,32 @@ public class BudgetService {
         return alertsCreated;
     }
 
+    public BudgetStatusDTO getBudgetStatus(Long userId, Long budgetId) {
+        return getBudgetWithStatus(userId, budgetId);
+    }
+
+    public List<BudgetResponseDTO> getBudgets(Long userId, Integer month, Integer year) {
+        List<Budget> budgets;
+
+        if (month != null && year != null) {
+            validateMonth(month);
+            validateYear(year);
+            budgets = budgetRepository.findByUserIdAndMonthAndYear(userId, month, year);
+        } else if (month != null || year != null) {
+            throw new ValidationException("Mês e ano devem ser fornecidos juntos ou não fornecidos");
+        } else {
+            budgets = budgetRepository.findByUserId(userId);
+        }
+
+        return budgets.stream()
+                .map(this::toBudgetResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<BudgetStatusDTO> getMonthlyStatus(Long userId, Integer month, Integer year) {
+        return getBudgetsByUserAndPeriod(userId, month, year);
+    }
+
     public List<BudgetResponseDTO> getAllBudgetsByUser(Long userId) {
         List<Budget> budgets = budgetRepository.findByUserId(userId);
         return budgets.stream()
@@ -238,15 +272,19 @@ public class BudgetService {
     }
 
     private BudgetResponseDTO toBudgetResponseDTO(Budget budget) {
-        return new BudgetResponseDTO(
-                budget.getId(),
+        CategorySimpleDTO categoryDTO = new CategorySimpleDTO(
                 budget.getCategory().getId(),
                 budget.getCategory().getName(),
+                budget.getCategory().getType()
+        );
+
+        return new BudgetResponseDTO(
+                budget.getId(),
+                categoryDTO,
                 budget.getAmount(),
                 budget.getMonth(),
                 budget.getYear(),
-                budget.getCreatedAt(),
-                budget.getUpdatedAt()
+                budget.getCreatedAt()
         );
     }
 
