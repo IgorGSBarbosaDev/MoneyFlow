@@ -11,7 +11,6 @@ import java.util.Optional;
 
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
-    // Query Methods
     List<Category> findByUserId(Long userId);
 
     List<Category> findByUserIdAndType(Long userId, CategoryType type);
@@ -22,9 +21,6 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     Long countByUserId(Long userId);
 
-    Optional<Category> findByUserIdAndCategoryId(Long userId, Long categoryId);
-
-    // Queries Customizadas
     @Query("SELECT c, COUNT(t.id) as transactionCount " +
             "FROM Category c " +
             "LEFT JOIN Transaction t ON t.category.id = c.id " +

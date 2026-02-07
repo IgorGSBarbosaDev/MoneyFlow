@@ -44,7 +44,7 @@ public class TransactionService {
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("Usuário não encontrado com id: " + userId));
 
-        var category = categoryRepository.findByUserIdAndCategoryId(userId, transactionRequestDTO.categoryId())
+        var category = categoryRepository.findByUserIdAndId(userId, transactionRequestDTO.categoryId())
                 .orElseThrow(() -> new CategoryNotFoundException("Categoria não encontrada com id: " + transactionRequestDTO.categoryId()));
 
         if (!transactionRequestDTO.type().name().equals(category.getType().name())) {
@@ -101,7 +101,7 @@ public class TransactionService {
             }
 
             if (filters.categoryId() != null) {
-                categoryRepository.findByUserIdAndCategoryId(userId, filters.categoryId())
+                categoryRepository.findByUserIdAndId(userId, filters.categoryId())
                         .orElseThrow(() -> new CategoryNotFoundException("Categoria não encontrada ou não pertence ao usuário"));
             }
         }
@@ -134,7 +134,7 @@ public class TransactionService {
         LocalDate oldDate = transaction.getDate();
         TransactionType oldType = transaction.getType();
 
-        Category newCategory = categoryRepository.findByUserIdAndCategoryId(userId, dto.categoryId())
+        Category newCategory = categoryRepository.findByUserIdAndId(userId, dto.categoryId())
                 .orElseThrow(() -> new CategoryNotFoundException("Categoria não encontrada ou não pertence ao usuário"));
 
         if (!dto.type().name().equals(newCategory.getType().name())) {
