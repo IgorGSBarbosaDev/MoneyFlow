@@ -3,6 +3,7 @@ package br.com.moneyflow.service;
 import br.com.moneyflow.exception.business.InvalidMonthException;
 import br.com.moneyflow.exception.business.InvalidYearException;
 import br.com.moneyflow.model.dto.budget.BudgetStatusDTO;
+import br.com.moneyflow.model.dto.category.CategorySimpleDTO;
 import br.com.moneyflow.model.dto.dashboard.*;
 import br.com.moneyflow.model.dto.transaction.CategoryExpenseDTO;
 import br.com.moneyflow.model.dto.transaction.TransactionResponseDTO;
@@ -265,14 +266,19 @@ public class DashboardService {
     }
 
     private TransactionResponseDTO toTransactionResponseDTO(Transaction t) {
+        CategorySimpleDTO categoryDTO = new CategorySimpleDTO(
+                t.getCategory().getId(),
+                t.getCategory().getName(),
+                t.getCategory().getType()
+        );
+
         return new TransactionResponseDTO(
                 t.getId(),
                 t.getDescription(),
                 t.getAmount(),
                 t.getDate(),
                 t.getType(),
-                t.getCategory().getId(),
-                t.getCategory().getName(),
+                categoryDTO,
                 t.getPaymentMethod(),
                 t.getNotes(),
                 t.getCreatedAt(),
