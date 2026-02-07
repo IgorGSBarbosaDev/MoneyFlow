@@ -8,10 +8,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record TransactionRequestDTO (
+        @NotBlank(message = "Descrição é obrigatória")
         @Size(min = 3, message = "Descrição deve ter no mínimo 3 caracteres")
         String description,
 
         @NotNull(message = "Valor é obrigatório")
+        @DecimalMin(value = "0.01", message = "Valor deve ser no mínimo 0.01")
         @Positive(message = "Valor deve ser positivo")
         BigDecimal amount,
 

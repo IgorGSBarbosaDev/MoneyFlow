@@ -97,6 +97,16 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("endDate") LocalDate endDate
     );
 
+    @Query("SELECT COUNT(t) FROM Transaction t " +
+            "WHERE t.user.id = :userId " +
+            "AND t.deleted = false " +
+            "AND t.date BETWEEN :startDate AND :endDate")
+    Long countByUserIdAndDateBetweenAndDeletedFalse(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
     @Query("SELECT COALESCE(SUM(t.amount), 0) " +
             "FROM Transaction t " +
             "WHERE t.user.id = :userId " +

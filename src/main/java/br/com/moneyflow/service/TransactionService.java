@@ -3,10 +3,12 @@ package br.com.moneyflow.service;
 import br.com.moneyflow.exception.authorization.UnauthorizedAcessException;
 import br.com.moneyflow.exception.business.*;
 import br.com.moneyflow.exception.resource.*;
+import br.com.moneyflow.model.dto.category.CategorySimpleDTO;
 import br.com.moneyflow.model.dto.transaction.CategoryExpenseDTO;
 import br.com.moneyflow.model.dto.transaction.TransactionFilterDTO;
 import br.com.moneyflow.model.dto.transaction.TransactionRequestDTO;
 import br.com.moneyflow.model.dto.transaction.TransactionResponseDTO;
+import br.com.moneyflow.model.dto.transaction.TransactionSummaryDTO;
 import br.com.moneyflow.model.entity.Budget;
 import br.com.moneyflow.model.entity.Category;
 import br.com.moneyflow.model.entity.Transaction;
@@ -214,6 +216,26 @@ public class TransactionService {
         return total != null ? total : BigDecimal.ZERO;
     }
 
+    public TransactionSummaryDTO getTransactionSummary(Long userId, LocalDate startDate, LocalDate endDate) {
+        validateDateRange(startDate, endDate);
+
+        BigDecimal totalIncome = getTotalIncomeByPeriod(userId, startDate, endDate);
+        BigDecimal totalExpense = getTotalExpenseByPeriod(userId, startDate, endDate);
+        BigDecimal balance = totalIncome.subtract(totalExpense);
+
+        Long transactionCount = transactionRepository.countByUserIdAndDateBetweenAndDeletedFalse(
+                userId, startDate, endDate);
+
+        return new TransactionSummaryDTO(
+                startDate,
+                endDate,
+                totalIncome,
+                totalExpense,
+                balance,
+                transactionCount != null ? transactionCount : 0L
+        );
+    }
+
     public List<CategoryExpenseDTO> getExpensesByCategory(Long userId, LocalDate startDate, LocalDate endDate) {
         validateDateRange(startDate, endDate);
 
@@ -258,14 +280,19 @@ public class TransactionService {
     }
 
     private TransactionResponseDTO toDTO(Transaction transaction) {
+        CategorySimpleDTO categoryDTO = new CategorySimpleDTO(
+                transaction.getCategory().getId(),
+                transaction.getCategory().getName(),
+                transaction.getCategory().getType()
+        );
+
         return new TransactionResponseDTO(
                 transaction.getId(),
                 transaction.getDescription(),
                 transaction.getAmount(),
                 transaction.getDate(),
                 transaction.getType(),
-                transaction.getCategory().getId(),
-                transaction.getCategory().getName(),
+                categoryDTO,
                 transaction.getPaymentMethod(),
                 transaction.getNotes(),
                 transaction.getCreatedAt(),
