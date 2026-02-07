@@ -1,7 +1,10 @@
 package br.com.moneyflow.exception;
 
+import br.com.moneyflow.exception.authorization.InvalidCredentialsException;
+import br.com.moneyflow.exception.authorization.InvalidTokenException;
 import br.com.moneyflow.exception.authorization.UnauthorizedAcessException;
 import br.com.moneyflow.exception.base.BaseException;
+import br.com.moneyflow.exception.business.InactiveUserException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -19,6 +22,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<Map<String, Object>> handleBaseException(BaseException ex) {
         return buildErrorResponse(ex.getMessage(), ex.getHttpStatus(), ex.getErrorCode());
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidCredentialsException(InvalidCredentialsException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidTokenException(InvalidTokenException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(InactiveUserException.class)
+    public ResponseEntity<Map<String, Object>> handleInactiveUserException(InactiveUserException ex) {
+        return buildErrorResponse(ex.getMessage(), HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(UnauthorizedAcessException.class)
